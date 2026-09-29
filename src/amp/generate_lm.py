@@ -30,7 +30,7 @@ DENSITY-MODEL COMPARISON, same corpus and same held-out split:
 
 DETERMINISM. Sampling is forced onto the CPU even when a GPU is present, because CUDA and CPU draw from
 different random streams and the organizers re-run this entry point and byte-compare the output. CPU
-sampling of 50,000 sequences takes about 23 minutes.
+sampling of 50,000 sequences takes about 25 minutes.
 
 TRAINING DATA. `data/antibacterial.fasta` only, the corpus shipped in the competition template. No
 pretrained weights, no external sequences. Trained weights ship in `checkpoint/peptide_lm.pt`.
@@ -38,36 +38,32 @@ pretrained weights, no external sequences. Trained weights ship in `checkpoint/p
 from __future__ import annotations
 
 import argparse
-import sys
+import os
+import tempfile
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 
-import os
-import tempfile
-
-from amp.generate import (mean_hydrophobicity, net_charge, pick_top, read_fasta,
-                          score_pool)
+from amp.generate import mean_hydrophobicity, net_charge, pick_top, read_fasta
 from amp.lm import BOS, EOS, ITOS, MAXLEN, PAD, PeptideLM
 
 SEED = 20260930
 
 
 def _write_fasta(seqs, path):
-    """Write atomically. A partially written FASTA is indistinguishable from a real one by eye, and an
-    earlier run of this script was killed mid-write and left a 300-sequence file that looked valid.
-    Write to a temp file in the same directory, then rename, which is atomic on POSIX and Windows."""
+    """Write atomically, so a killed process leaves NO file rather than a plausible fragment.
+
+    An earlier run of this script was killed mid-write and left a 300-sequence library.fasta that looked
+    like a valid result. Write to a temp file in the same directory, fsync, then rename.
+    """
     path = str(path)
-    d = os.path.dirname(path) or "."
-    fd, tmp = tempfile.mkstemp(dir=d, suffix=".partial")
+    directory = os.path.dirname(path) or "."
+    fd, tmp = tempfile.mkstemp(dir=directory, suffix=".partial")
     try:
-        with os.fdopen(fd, "w", newline="
-") as fh:
+        with os.fdopen(fd, "w", newline="\n") as fh:
             for i, s in enumerate(seqs, start=1):
-                fh.write(">seq%d
-%s
-" % (i, s))
+                fh.write(">seq%d\n%s\n" % (i, s))
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
@@ -139,16 +135,16 @@ def main():
     out_dir = Path("generate_lm")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    print("sampling %d sequences from %s on CPU (deterministic)" % (a.n_sequences, a.ckpt))
+    print("sampling %d sequences from %s on CPU (deterministic)" % (a.n_sequences, a.ckpt), flush=True)
     seqs, refs = sample_library(a.ckpt, a.ref, a.n_sequences, seed=a.seed, batch=a.batch)
     _write_fasta(seqs, out_dir / "library.fasta")
-    print("library: %d sequences -> %s" % (len(seqs), out_dir / "library.fasta"))
+    print("library: %d sequences -> %s" % (len(seqs), out_dir / "library.fasta"), flush=True)
 
     # identical selection machinery to the Markov entry: measured envelope, composition guard with
     # cysteine excluded, internal diversity cap, and the three-definition identity screen.
     top = pick_top(seqs, refs, a.top_k)
     _write_fasta(top, out_dir / "top.fasta")
-    print("top:     %d sequences -> %s" % (len(top), out_dir / "top.fasta"))
+    print("top:     %d sequences -> %s" % (len(top), out_dir / "top.fasta"), flush=True)
 
     qs = [net_charge(t) for t in top]
     hs = [mean_hydrophobicity(t) for t in top]
