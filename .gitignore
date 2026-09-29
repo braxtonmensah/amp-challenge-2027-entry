@@ -8,3 +8,7 @@ data/labelled/
 generate/variants/
 
 # second entry's generated output is reproducible from the shipped checkpoint
+
+# 69 MB ESM2 embedding cache, reproducible from the scripts
+generate/.emb_cache.npz
+*.log
