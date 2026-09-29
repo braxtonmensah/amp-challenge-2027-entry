@@ -83,11 +83,37 @@ We measured it on 501 sequences with paired HC50 and panel MIC. Net charge and h
 | hydrophobicity -> log MIC50 | +0.256 | **-0.176 (sign flips)** |
 | hydrophobicity -> log safety window | -0.454 | **-0.239** |
 
-At fixed charge, hydrophobicity does buy potency, as the literature says. But it costs HC50 roughly
-**twice** what it buys in MIC. So the trade is real and **not worth taking** — and because the
-relationship is monotone, **a band was the wrong instrument entirely**: the old band's lower bound of
-0.05 excluded the best available region. Peptides inside the old band measured a median log safety
-window of 1.089 against 1.593 outside it (Mann-Whitney p = 2.8e-10).
+In the pooled data, at fixed charge, hydrophobicity buys potency as the literature says, while costing
+HC50 roughly twice as much — so the trade is real and **not worth taking**. And because the relationship
+is monotone, **a band was the wrong instrument entirely**: the old band's lower bound of 0.05 excluded the
+best available region. Peptides inside the old band measured a median log safety window of 1.089 against
+1.593 outside it (Mann-Whitney p = 2.8e-10).
+
+#### Robustness, and a correction to the sentence above
+
+`src/amp/robustness_sw.py` puts this through four stresses. Three of the four leave it intact and the
+fourth forces a correction, so both are reported.
+
+| stress | hydrophobicity -> log SW, controlling charge |
+|---|---|
+| all 501 paired | -0.239 |
+| similarity-cluster half A (n=260) | -0.236 |
+| similarity-cluster half B (n=241) | -0.235 |
+| also controlling length | -0.233 |
+| within DBAASP (n=274) / YADAMP (n=238) / DRAMP (n=219) | -0.245 / -0.303 / -0.223 |
+
+**Parse validated.** The haemolysis file has malformed line endings and is parsed positionally, which is
+exactly the kind of thing that invents a result. So `Hemolytik_data.csv` is parsed independently and
+strictly, filtered by its *own* columns to Linear / C-ter Free / N-ter Free / Modified None and to
+micromolar units only. On the 67 sequences the two parses share: **rank correlation +0.773, Pearson +0.849**
+on log10. The parse is not manufacturing the relationship.
+
+**The correction.** The *haemolysis cost* is robust: hydrophobicity -> log HC50 controlling charge sits
+between -0.32 and -0.40 in every cluster half and every source database. The *potency benefit* is **not**:
+hydrophobicity -> log MIC controlling charge ranges from **-0.006 in YADAMP** to -0.246 in DRAMP. So the
+design conclusion ("penalise hydrophobicity") is well supported, but the mechanism as stated above is only
+half supported — the cost is real, the benefit is not reliably present in this data. We prefer to leave
+the original sentence standing with this correction beneath it rather than quietly rewrite it.
 
 ### The scorer that ships
 
