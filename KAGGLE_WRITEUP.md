@@ -87,6 +87,7 @@ failed and we report that rather than shipping the more sophisticated method.
 |---|---|---|---|---|---|---|
 | held-out real AMPs (ceiling) | 1.000 | 0.853 | 1.0 | 0.485 | 0.0049 | 0.00057 |
 | **our library** | 1.000 | **0.850** | 1.0 | **0.570** | **0.0093** | **0.00148** |
+| **our top-100** | 1.000 | **0.819** | 1.0 | **0.539** | **0.0533** | **0.0163** |
 | composition-matched shuffles | 1.000 | 0.856 | 1.0 | 0.504 | 0.0064 | 0.00115 |
 | random K/P (example generator) | 0.979 | 0.479 | 1.0 | 0.147 | 0.354 | 2.378 |
 
