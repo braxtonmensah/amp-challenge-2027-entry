@@ -59,7 +59,15 @@ success rate (MIC <= 16 uM, weighted 15:5 Gram-negative:Gram-positive to match t
 
 The moment and helix terms were indistinguishable from noise, banding the charge destroyed signal, and the
 composite ranked worse than net charge alone. **We retract our earlier claim** that banding hydrophobicity
-buys a safety window. On 501 peptides with paired HC50 and panel MIC, controlling for net charge (the two
+buys a safety window.
+
+**And we retract a second claim, against prior art.** We had argued the hydrophobicity/activity
+relationship is monotone, making a band the wrong instrument. That is wrong: Chen et al. 2007 (*Antimicrob
+Agents Chemother* 51:1398-1406) establishes an optimum hydrophobicity window for potency at constant net
+charge, and our own data agrees once charge is held fixed (success rate 0.551 in our band against 0.665 at
+hydrophobicity 0.05-0.25, binned at charge +4 to +5). Our monotone reading was the charge confound
+(r = -0.729) surviving into a conclusion. We keep the low-hydrophobicity selection for a narrower reason
+given below, not because Chen et al. are wrong. On 501 peptides with paired HC50 and panel MIC, controlling for net charge (the two
 correlate -0.729): hydrophobicity buys potency (partial rho -0.176 on log MIC) but costs haemolysis about
 twice as much (-0.366 on log HC50), netting -0.239 on log safety window. The trade is real and not worth
 taking, and being monotone, a band was the wrong instrument.
@@ -75,6 +83,15 @@ Adopted against three gates pre-registered in `PREREG_SELECTION_2.md`, on a clus
 
 The fitted ridge beat the simple form by 0.009 log10, inside the pre-registered simplicity margin, so its
 weights were discarded.
+
+**Why we target one category and concede four.** Optimal Selectivity ranks on mean HC50/MIC50 and
+**excludes peptides inactive on every strain rather than scoring them zero**, so its objective is
+E[SW | active] and the dead fraction barely enters; the other four categories average Success Rate over all
+25, where dead peptides drag the mean. On the paired HC50/MIC subset at charge +3 to +7, our band gives
+E[log SW | active] **1.839** against **1.239** for the old band, at the highest active fraction of any bin
+(0.923). Stated conflict: a larger sample (n=109, charge +4 to +5, MIC labels only) favours the old band on
+success rate, 0.665 against 0.551, and it is the more reliable estimate of the potency question. So we
+most likely concede some success rate deliberately.
 
 **A trained MIC model was tested and is NOT shipped.** Pre-registered in `PREREG_SELECTION.md`: a
 descriptor ridge model learned real signal (grouped-CV Spearman +0.361 against a -0.074 shuffled-label

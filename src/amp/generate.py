@@ -162,13 +162,23 @@ def score_pool(sequences):
       * a fitted three-descriptor ridge beat this by 0.009 log10, inside the pre-registered simplicity
         margin, so the fitted weights were discarded in favour of this.
 
-    WHY HYDROPHOBICITY IS SUBTRACTED RATHER THAN BANDED. The retired scorer banded it, on the asserted
-    premise that hydrophobicity "drives haemolysis about as readily as it drives killing". Measured on
-    501 sequences with paired HC50 and panel MIC, and controlling for net charge (the two correlate
-    -0.729, so raw correlations are confounded): hydrophobicity buys potency (partial rho -0.176 on log
-    MIC) but costs haemolysis about twice as much (partial rho -0.366 on log HC50), netting -0.239 on
-    log safety window. The trade is real and is not worth taking, and because the relationship is
-    monotone a band is the wrong instrument - the old band's lower bound of 0.05 excluded the best region.
+    WHY HYDROPHOBICITY IS SUBTRACTED RATHER THAN BANDED. Measured on 501 sequences with paired HC50 and
+    panel MIC, controlling for net charge (the two correlate -0.729, so raw correlations are confounded):
+    hydrophobicity costs haemolysis substantially (partial rho -0.366 on log HC50), netting -0.239 on log
+    safety window. That direction survives four robustness stresses (see robustness_sw.py).
+
+    NOT because the relationship is monotone. An earlier version of this docstring said so and that was
+    wrong: Chen et al. 2007 (Antimicrob Agents Chemother 51:1398-1406) establishes an optimum
+    hydrophobicity WINDOW for potency at constant net charge, and our own data agrees once charge is held
+    fixed - binned at charge +4 to +5, measured success rate rises from 0.551 in our band to 0.665 at
+    hydrophobicity 0.05-0.25. The monotone reading was the charge confound surviving into a conclusion.
+
+    The selection stays low-hydrophobicity for a narrower, explicit reason: the Optimal Selectivity
+    category ranks on mean HC50/MIC50 and EXCLUDES peptides inactive on every strain rather than scoring
+    them zero, so its objective is E[SW | active] and the dead fraction barely enters. On the paired subset
+    at charge +3 to +7 our band gives E[log SW | active] 1.839 against 1.239 for the old band, with the
+    highest active fraction (0.923) of any bin. This entry therefore optimises one category and concedes
+    the four that average Success Rate over all 25 peptides. That is a choice, not an oversight.
     """
     qs = [net_charge(s) for s in sequences]
     hs = [mean_hydrophobicity(s) for s in sequences]

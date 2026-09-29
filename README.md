@@ -84,10 +84,41 @@ We measured it on 501 sequences with paired HC50 and panel MIC. Net charge and h
 | hydrophobicity -> log safety window | -0.454 | **-0.239** |
 
 In the pooled data, at fixed charge, hydrophobicity buys potency as the literature says, while costing
-HC50 roughly twice as much — so the trade is real and **not worth taking**. And because the relationship
-is monotone, **a band was the wrong instrument entirely**: the old band's lower bound of 0.05 excluded the
-best available region. Peptides inside the old band measured a median log safety window of 1.089 against
-1.593 outside it (Mann-Whitney p = 2.8e-10).
+HC50 roughly twice as much — so for the safety window the trade is **not worth taking**. Peptides inside
+the old band measured a median log safety window of 1.089 against 1.593 outside it (Mann-Whitney
+p = 2.8e-10).
+
+#### Retracted: our claim that the relationship is monotone
+
+An earlier version of this section argued that because the relationship is monotone, banding was "the
+wrong instrument entirely". **That was wrong, and it is wrong against well-established prior art.**
+Chen et al. 2007 (*Antimicrob Agents Chemother* 51:1398-1406) demonstrates, on a congeneric series at
+**constant net charge**, an optimum hydrophobicity window for antimicrobial potency: past the optimum,
+activity collapses through peptide self-association, and below it peptides go inactive. Haemolysis, by
+contrast, is monotone in hydrophobicity. Our own data agrees once charge is properly held fixed — binned
+at charge +4 to +5, measured success rate rises from 0.551 in our band to 0.665 at hydrophobicity
+0.05-0.25. Our monotone reading was the charge confound (r = -0.729) surviving into a conclusion.
+
+**We keep the low-hydrophobicity selection anyway, for a different and explicit reason.** The five
+categories do not score the same way. Optimal Selectivity ranks on mean HC50/MIC50 and **excludes peptides
+inactive on every strain rather than scoring them zero**, so the objective there is E[SW | active] and the
+fraction of dead peptides barely enters. The other four categories average Success Rate over all 25, where
+dead peptides do drag the mean. Measured on the paired subset at charge +3 to +7:
+
+| mean hydrophobicity | n | frac active | E[log SW \| active] | mean success rate |
+|---|---|---|---|---|
+| -0.20 to -0.05 (**ours**) | 39 | 0.923 | **1.839** | 0.752 |
+| -0.05 to 0.10 | 85 | 0.824 | 1.812 | 0.655 |
+| 0.10 to 0.30 (old band) | 121 | 0.810 | **1.239** | 0.589 |
+
+So this entry deliberately optimises one category and concedes four. It is not a claim that Chen et al.
+are wrong; it is a claim that their optimum is the wrong optimum for the metric we are targeting.
+
+**The conflict in our own numbers, stated rather than hidden.** The larger sample (n=109, charge +4 to +5,
+MIC labels only) favours the old band on success rate, 0.665 against 0.551. The smaller paired subset
+(n=39) favours ours, 0.752 against 0.589. The larger sample is the more reliable estimate of the potency
+question, so we most likely give up some success rate. The safety-window direction is the robust one, and
+it is the one we are selecting on.
 
 #### Robustness, and a correction to the sentence above
 
