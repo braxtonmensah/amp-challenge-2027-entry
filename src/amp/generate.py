@@ -126,7 +126,13 @@ def _band(x, lo, hi):
 
 
 def score_one(s):
-    """Composite, higher is better. Weights are stated, not tuned against any withheld metric."""
+    """SUPERSEDED, kept only so the retired scorer stays auditable. Do not select with this.
+
+    Measured on 2,904 panel-matched unmodified sequences with published MIC values, this composite ranks
+    WORSE than raw net charge alone (AUC 0.595 vs 0.678). Its moment term (weight 0.30, AUC 0.514) and
+    helix term (weight 0.10, AUC 0.498) are indistinguishable from noise, and banding the charge throws
+    away signal the raw value carries. See PREREG_SELECTION_2.md section 1.
+    """
     q = net_charge(s)
     h = mean_hydrophobicity(s)
     mu = hydrophobic_moment(s)
@@ -135,6 +141,38 @@ def score_one(s):
             + 0.30 * min(1.0, mu / 0.55)
             + 0.20 * _band(h, H_TARGET_LO, H_TARGET_HI)
             + 0.10 * min(1.0, (hel - 0.85) / 0.35))
+
+
+def _zrank(v):
+    """Rank-standardise within the candidate pool. Deterministic given the pool and its order."""
+    v = np.asarray(v, dtype=float)
+    order = np.argsort(np.argsort(v, kind="stable"), kind="stable").astype(float)
+    return (order - order.mean()) / (order.std() + 1e-12)
+
+
+def score_pool(sequences):
+    """The scorer actually used: rank(net charge) - rank(mean hydrophobicity). Higher is better.
+
+    Two terms, no fitted weights, and every element of it was measured before being adopted. It was
+    chosen against three pre-registered gates on a cluster-disjoint held-out half (PREREG_SELECTION_2.md):
+
+      * safety window HC50/MIC50 of the selected 100: median log SW 1.541 vs 1.229 for the retired
+        composite, i.e. about a 1.8x wider window;
+      * measured panel success rate: 0.682 vs 0.615, so the window is not bought with potency;
+      * a fitted three-descriptor ridge beat this by 0.009 log10, inside the pre-registered simplicity
+        margin, so the fitted weights were discarded in favour of this.
+
+    WHY HYDROPHOBICITY IS SUBTRACTED RATHER THAN BANDED. The retired scorer banded it, on the asserted
+    premise that hydrophobicity "drives haemolysis about as readily as it drives killing". Measured on
+    501 sequences with paired HC50 and panel MIC, and controlling for net charge (the two correlate
+    -0.729, so raw correlations are confounded): hydrophobicity buys potency (partial rho -0.176 on log
+    MIC) but costs haemolysis about twice as much (partial rho -0.366 on log HC50), netting -0.239 on
+    log safety window. The trade is real and is not worth taking, and because the relationship is
+    monotone a band is the wrong instrument - the old band's lower bound of 0.05 excluded the best region.
+    """
+    qs = [net_charge(s) for s in sequences]
+    hs = [mean_hydrophobicity(s) for s in sequences]
+    return _zrank(qs) - _zrank(hs)
 
 
 def generate(n_sequences, ref_path, seed=SEED):
@@ -171,10 +209,68 @@ def generate(n_sequences, ref_path, seed=SEED):
     return out, refs
 
 
-def pick_top(sequences, refs, k, novelty=0.8):
-    """Best-scoring k that are <= `novelty` Levenshtein ratio from EVERY reference sequence."""
+def pick_top(sequences, refs, k, novelty=0.8, max_internal=0.7):
+    """Best-scoring k that clear the novelty bar AND are not near-duplicates of each other.
+
+    The internal-diversity cap (`max_internal`) is new and is a deliberate, unfitted choice. Two reasons:
+
+      * The competition draws the 25 assayed peptides UNIFORMLY AT RANDOM from the top-100, so the order
+        of the 100 cannot affect any score and a set of near-duplicates wastes draws on one idea.
+      * Measured on the organizers' own Phase 1 scorer (seqme), the previous top-100 scored 0.760 on
+        Diversity against 0.850 for the library it came from, with FBD 6.7x and MMD 52x worse. The
+        qualification ranking uses the library AND the top candidate list, so a narrow set costs twice.
+    """
     import Levenshtein
-    ranked = sorted(sequences, key=lambda s: (-score_one(s), s))
+
+    # MEASURED-ENVELOPE CONSTRAINT. score_pool is an unbounded linear score, so maximising it over
+    # 50,000 candidates walks straight off the end of the evidence: the first unconstrained run selected
+    # poly-arginine strings at charge +18 (e.g. RRRRWIRDLAKTMQHPPRRQPKKRRKRRRGCR), with 44 of 100 outside
+    # the range where the charge/hydrophobicity relationship was ever measured. Those are
+    # cell-penetrating-peptide motifs, not antimicrobials, and nothing in the data speaks to them.
+    # Bounds are the 1st-99th percentile envelope of the 2,904 labelled panel sequences the scorer was
+    # validated on. Selection happens INSIDE the evidence, not past its edge.
+    # Set at the 30th-70th percentile of the labelled distribution, not the 1st-99th, and that choice
+    # was measured rather than guessed. Pushing to the 99th percentile maximises predicted safety window
+    # (pred log SW 0.825 vs 0.304 here) but collapses the organizers' own Phase 1 property-conformity
+    # metric from 0.496 to 0.029, against 0.489 for held-out real AMPs. Qualification for the assay comes
+    # before any Phase 2 gain, so the rule applied was: take the most aggressive envelope whose seqme
+    # conformity is still at least that of real AMPs. That is this one. It keeps +0.247 log10 of the
+    # +0.262 measured safety-window improvement and also raises top-100 diversity (0.823 vs 0.760).
+    ENV_CHARGE_LO, ENV_CHARGE_HI = -1.0, 5.0
+    ENV_HYDRO_LO, ENV_HYDRO_HI = -0.19, 0.65
+
+    # COMPOSITION GUARD, caps set at the 95th percentile of the reference antibacterials themselves, so
+    # the selected set stays inside the composition space where 95% of real AMPs live. This exists because
+    # extremising any linear score invites composition tricks: an earlier unconstrained run put 7
+    # tryptophans and a run of glutamines in the top sequence, since glutamine's Eisenberg value (-0.85)
+    # drags mean hydrophobicity down without making a better antimicrobial.
+    #
+    # Cysteine is excluded outright. The competition requires linear peptides with free termini, and a
+    # free thiol invites disulfide dimerisation during synthesis and QC; Phase 1 also scores
+    # "empirically derived synthesizability constraints", so this is measured on both sides.
+    CAP_MAX_SINGLE, CAP_W, CAP_AROMATIC, CAP_Q = 0.500, 0.238, 0.333, 0.111
+
+    def _frac(s, aas):
+        return sum(s.count(c) for c in aas) / float(len(s))
+
+    def in_envelope(s):
+        q = net_charge(s)
+        h = mean_hydrophobicity(s)
+        if not (ENV_CHARGE_LO <= q <= ENV_CHARGE_HI and ENV_HYDRO_LO <= h <= ENV_HYDRO_HI):
+            return False
+        if "C" in s:
+            return False
+        if max(s.count(c) for c in set(s)) / float(len(s)) > CAP_MAX_SINGLE:
+            return False
+        return (_frac(s, "W") <= CAP_W and _frac(s, "FWY") <= CAP_AROMATIC
+                and _frac(s, "Q") <= CAP_Q)
+
+    eligible = [s for s in sequences if in_envelope(s)]
+    if len(eligible) < k:
+        raise RuntimeError("only %d of %d candidates fall inside the measured envelope"
+                           % (len(eligible), len(sequences)))
+    scores = score_pool(eligible)
+    ranked = [s for _sc, s in sorted(zip(-scores, eligible), key=lambda t: (t[0], t[1]))]
     # bucket references by length so the novelty scan is not 39k comparisons per candidate
     bylen = defaultdict(list)
     for r in refs:
@@ -192,10 +288,16 @@ def pick_top(sequences, refs, k, novelty=0.8):
                 if Levenshtein.ratio(s, r) > novelty:
                     ok = False
                     break
+        if ok and max_internal is not None:
+            for t in top:
+                if Levenshtein.ratio(s, t) > max_internal:
+                    ok = False
+                    break
         if ok:
             top.append(s)
     if len(top) < k:
-        raise RuntimeError("only %d of %d candidates cleared the novelty bar" % (len(top), k))
+        raise RuntimeError("only %d of %d candidates cleared the novelty and diversity bars "
+                           "(loosen max_internal)" % (len(top), k))
     return top
 
 
@@ -223,9 +325,13 @@ def main():
     top = pick_top(seqs, refs, a.top_k)
     _write_fasta(top, out_dir / "top.fasta")
     print("top:     %d sequences -> %s" % (len(top), out_dir / "top.fasta"))
-    print("top-1 score %.3f  charge %+.1f  moment %.3f  H %.2f  %s"
-          % (score_one(top[0]), net_charge(top[0]), hydrophobic_moment(top[0]),
-             mean_hydrophobicity(top[0]), top[0]))
+    qs = [net_charge(t) for t in top]
+    hs = [mean_hydrophobicity(t) for t in top]
+    print("top-100 net charge   median %+.1f  range %+.1f to %+.1f"
+          % (sorted(qs)[len(qs) // 2], min(qs), max(qs)))
+    print("top-100 hydrophobic. median %+.2f  range %+.2f to %+.2f"
+          % (sorted(hs)[len(hs) // 2], min(hs), max(hs)))
+    print("top-1 %s" % top[0])
 
 
 if __name__ == "__main__":
