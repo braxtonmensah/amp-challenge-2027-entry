@@ -7,6 +7,32 @@ Paste-ready. Everything below is checkable against the repository.
 **Entry point:** `uv sync` then `uv run generate`
 **Category emphasis:** Optimal Selectivity (safety window HC50/MIC50)
 
+## Declared up front: this is one of TWO entries from the same author
+
+The rules permit it: *"If a team has two or more sufficiently different models, it may submit one entry
+per model."* This entry generates with an **order-2 Markov chain**. The companion entry,
+[amp-challenge-2027-entry-lm](https://github.com/braxtonmensah/amp-challenge-2027-entry-lm), generates
+with a **transformer trained from scratch**. They are separate repositories because the validator
+hardcodes `ENTRY_POINT = "generate"`, so two models inside one repository would regenerate the same
+library twice.
+
+**Declaring this because Section 2.3 runs a pairwise overlap analysis across submitted libraries and
+top-100 lists to detect collusion or duplicate submissions.** Two entries from one author should be
+checked, so here are the numbers, measured rather than asserted:
+
+| comparison between the two entries | result |
+|---|---|
+| identical sequences in the two 50,000-libraries | **0** |
+| identical sequences in the two top-100 lists | **0 of 100** |
+| highest Levenshtein ratio between any cross-entry top-100 pair | **0.667** |
+| cross-entry top-100 pairs at ratio >= 0.8 | **0 of 10,000** |
+
+The **method documentation deliberately overlaps**, and that is a design choice rather than an oversight.
+The selection rule, the three guards, the identity screen and the retractions are *identical by
+construction* in both entries, so that the generative model is the only variable between them. Sections
+describing that shared half are therefore near-identical in the two writeups. The generation sections,
+the libraries and the candidates are entirely distinct.
+
 ---
 
 ## Abstract
