@@ -6,3 +6,5 @@ run1/
 # the GRAMPA repo ships no LICENSE, so fetch it yourself (see README).
 data/labelled/
 generate/variants/
+
+# second entry's generated output is reproducible from the shipped checkpoint
