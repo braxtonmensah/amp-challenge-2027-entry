@@ -30,8 +30,7 @@ Single seed (`20260930`); two runs are byte-identical.
 **Selection.** `rank(net charge) - rank(mean hydrophobicity)` within the candidate pool. Two terms, no
 fitted weights, restricted by three guards:
 
-1. **Measured envelope** — net charge in [-1, +5], mean Eisenberg hydrophobicity in [-0.19, +0.65], the
-   30th-70th percentile band of the labelled distribution.
+1. **Measured envelope** — net charge in [-1, +5], mean Eisenberg hydrophobicity in [-0.05, +0.65], a band of the labelled distribution.
 2. **Composition guard** at the 95th percentile of the reference actives (max single residue <= 0.500,
    W <= 0.238, aromatic FWY <= 0.333, Q <= 0.111), and cysteine excluded outright for synthesis quality.
 3. **Internal diversity cap** — pairwise Levenshtein ratio <= 0.7 within the 100, since the 25 assayed
@@ -104,7 +103,7 @@ failed and we report that rather than shipping the more sophisticated method.
 |---|---|---|---|---|---|---|
 | held-out real AMPs (ceiling) | 1.000 | 0.853 | 1.0 | 0.485 | 0.0049 | 0.00057 |
 | **our library** | 1.000 | **0.850** | 1.0 | **0.570** | **0.0093** | **0.00148** |
-| **our top-100** | 1.000 | **0.819** | 1.0 | **0.539** | **0.0533** | **0.0163** |
+| **our top-100** | 1.000 | **0.825** | 1.0 | **0.596** | **0.0529** | **0.0112** |
 | composition-matched shuffles | 1.000 | 0.856 | 1.0 | 0.504 | 0.0064 | 0.00115 |
 | random K/P (example generator) | 0.979 | 0.479 | 1.0 | 0.147 | 0.354 | 2.378 |
 

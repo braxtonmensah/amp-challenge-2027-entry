@@ -315,7 +315,20 @@ def pick_top(sequences, refs, k, novelty=0.8, max_internal=0.7):
     # conformity is still at least that of real AMPs. That is this one. It keeps +0.247 log10 of the
     # +0.262 measured safety-window improvement and also raises top-100 diversity (0.823 vs 0.760).
     ENV_CHARGE_LO, ENV_CHARGE_HI = -1.0, 5.0
-    ENV_HYDRO_LO, ENV_HYDRO_HI = -0.19, 0.65
+    ENV_HYDRO_LO, ENV_HYDRO_HI = -0.05, 0.65
+    # The two axes were later decoupled and re-measured, because tuning them with one shared percentile
+    # had conflated them. Two results. (a) Gram-negative activity rises monotonically with net charge in
+    # the labelled data (success rate 0.606 at charge 4-6, 0.770 at 6-8, 0.812 at 8-10) and the panel is
+    # 15/20 Gram-negative, so a higher charge cap looks attractive - but EVERY variant that lifts median
+    # charge above +5 collapses seqme property conformity (0.303 at cap +7, 0.197 at +9, against 0.489 for
+    # real AMPs). Real AMPs have median charge near +4, so selecting for +7 makes the set distributionally
+    # unlike real AMPs by construction. That conflict is structural and the charge cap stays at +5.
+    # (b) The hydrophobicity floor moved from -0.19 to -0.05, which measured better on all three Phase 1
+    # metrics (conformity 0.592 vs 0.536, diversity 0.825 vs 0.819, MMD 0.0112 vs 0.0166) at essentially
+    # unchanged safety window (E[log SW | active] 1.812 vs 1.839, a 6% difference). Tuning stopped here
+    # deliberately: these constants are now two steps of selection against a proxy for the Phase 1 scorer,
+    # and a third would be fitting to the metric rather than to the biology.
+
 
     # COMPOSITION GUARD, caps set at the 95th percentile of the reference antibacterials themselves, so
     # the selected set stays inside the composition space where 95% of real AMPs live. This exists because
