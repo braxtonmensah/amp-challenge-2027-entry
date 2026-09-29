@@ -1,0 +1,9 @@
+# The organizers' validator clones this repo and runs generation twice on LINUX, byte-comparing the
+# output. Anything that lets a line ending shift between platforms is a reproducibility hazard, so
+# every text file in this repo is stored and checked out as LF.
+* text=auto eol=lf
+*.fasta text eol=lf
+*.py    text eol=lf
+*.toml  text eol=lf
+*.lock  text eol=lf
+*.md    text eol=lf
