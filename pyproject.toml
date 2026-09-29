@@ -7,7 +7,9 @@ authors = [
     { name = "Braxton Mensah", email = "bsmensah@iu.edu" }
 ]
 requires-python = ">=3.10"
-dependencies = ["numpy>=2.2.6", "levenshtein>=0.27.3"]
+dependencies = ["numpy>=2.2.6", "levenshtein>=0.27.3",
+    "biopython>=1.83",
+]
 
 [project.scripts]
 generate = "amp.generate:main"

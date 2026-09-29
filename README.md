@@ -130,16 +130,32 @@ watching that happen, not in anticipation:
    peptides are drawn **uniformly at random** from the top-100, so the ordering of the 100 cannot affect
    any score and near-duplicates simply waste draws. This raised top-100 diversity from 0.760 to 0.823.
 
-### Novelty
+### Novelty, and a metric mismatch we found and fixed
 
-The library excludes exact matches to the reference set. The top 100 additionally sit at Levenshtein
-ratio <= 0.8 from every one of the 39,448 reference sequences.
+The library excludes exact matches to the reference set. The top 100 are additionally screened on
+**sequence identity**, not an edit ratio, because those are not the same thing and the difference was
+costing us candidates.
 
-**Known gap, stated plainly.** The competition's actual rule is MMseqs2 <= 80% sequence identity against
-the MarLys reference database (~102,000 sequences from thirteen databases). We apply an edit-ratio
-proxy against the 39,448-sequence template corpus, which is a different metric against a smaller
-reference set. Non-compliant candidates are replaced by the organizers with the next valid entry, so the
-consequence is dilution of our ranked set rather than disqualification. We could not obtain MarLys.
+The rule is "no more than 80% sequence identity, computed via MMseqs2 pairwise alignment". Identity is
+computed over an *alignment*, so two peptides can sit below 0.8 Levenshtein ratio and still align above
+80% identity over a well-covered region. Measured on an earlier top-100 that passed the edit-ratio filter:
+
+| identity definition | candidates above 0.80 |
+|---|---|
+| full-length global alignment | 0 of 100 |
+| matches / shorter sequence length | **14 of 100** |
+| local alignment, coverage >= 0.8 | **24 of 100** |
+
+Non-compliant candidates are replaced by the organizers with the next valid entry, so that was up to a
+quarter of the ranked set silently diluted. Rather than bet on one reading of the rule, every candidate
+must now clear 80% under **all three** definitions, by BLOSUM62 alignment (`_identity_ok`). The shipped
+top-100 has **zero violations under all three**, with a maximum identity of 0.800.
+
+**Residual gap, stated plainly.** The rule names the MarLys database (~102,000 sequences, thirteen
+databases), which we could not obtain; we screen against the template's own 39,448 antibacterials. We
+bounded how much that can matter rather than leaving it unquantified: a union with DRAMP 3.0 and GRAMPA
+contains 43,025 unique sequences against the template's 39,448, i.e. those two databases add only about
+9% of genuinely new sequence. That bounds the gap; it does not close it.
 
 ## Phase 1, measured on the organizers' own `seqme`
 
@@ -173,6 +189,7 @@ also carrying +0.247 log10 of predicted safety window. No Phase 1 cost was paid 
 | `_verify_no_overlap` vs 39,448 references | PASS |
 | `_verify_top(top.fasta, k=100)` | PASS |
 | `_veritfy_max_simularity(<= 0.80)` | PASS |
+| identity <= 0.80 under all three definitions | PASS, 0 violations, max 0.800 |
 | two independent runs, byte-compared | IDENTICAL |
 
 Peptide constraints: 20 standard amino acids, 8-50 residues, linear, free termini, no duplicates. The

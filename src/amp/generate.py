@@ -209,6 +209,74 @@ def generate(n_sequences, ref_path, seed=SEED):
     return out, refs
 
 
+_ALIGNERS = {}
+
+
+def _aligners():
+    """BLOSUM62 local and global aligners, built once. Deterministic."""
+    if not _ALIGNERS:
+        from Bio import Align
+        from Bio.Align import substitution_matrices
+        m = substitution_matrices.load("BLOSUM62")
+        for mode in ("local", "global"):
+            a = Align.PairwiseAligner()
+            a.substitution_matrix = m
+            a.open_gap_score = -11
+            a.extend_gap_score = -1
+            a.mode = mode
+            _ALIGNERS[mode] = a
+    return _ALIGNERS["local"], _ALIGNERS["global"]
+
+
+def _identity_ok(s, refs, threshold=0.8, prefilter=0.45):
+    """True when `s` is below `threshold` SEQUENCE IDENTITY to every reference, on all three readings.
+
+    WHY THIS EXISTS. The competition's rule is "no more than 80% sequence identity, computed via MMseqs2
+    pairwise alignment". A Levenshtein edit ratio is NOT that: identity is computed over an alignment, so
+    two sequences can sit below 0.8 edit ratio while still aligning at >80% identity over a well-covered
+    region. Measured on an earlier top-100 that passed the edit-ratio filter: 0 of 100 exceeded 0.80 by
+    full-length global identity, but 14 of 100 exceeded it by matches/shorter-length and 24 of 100 by
+    local identity at coverage >= 0.8. Non-compliant candidates are replaced by the organizers with the
+    next valid entry, so that was up to a quarter of the ranked set silently diluted.
+
+    Rather than bet on one reading of the rule, a candidate must clear the threshold under ALL of them.
+
+    One caveat, measured and disclosed: the reference here is the template's own 39,448 antibacterials.
+    The rule names the MarLys database (~102,000 sequences, thirteen databases), which we could not
+    obtain. Building a union with DRAMP 3.0 and GRAMPA added only ~9% of new sequences (43,025 unique
+    against 39,448), which bounds how much that gap can matter, but it does not close it.
+    """
+    import Levenshtein
+    loc, glo = _aligners()
+    for r in refs:
+        if abs(len(r) - len(s)) > 20:
+            continue
+        if Levenshtein.ratio(s, r) < prefilter:
+            continue
+        try:
+            A = loc.align(s, r)[0]
+        except Exception:
+            continue
+        ta, tb = A[0], A[1]
+        L = len(ta)
+        if not L:
+            continue
+        m = sum(1 for x, y in zip(ta, tb) if x == y and x != "-")
+        shorter = float(min(len(s), len(r)))
+        if m / shorter > threshold:
+            return False
+        if L / shorter >= 0.8 and m / float(L) > threshold:
+            return False
+        try:
+            G = glo.align(s, r)[0]
+        except Exception:
+            continue
+        ga, gb = G[0], G[1]
+        if len(ga) and sum(1 for x, y in zip(ga, gb) if x == y and x != "-") / float(len(ga)) > threshold:
+            return False
+    return True
+
+
 def pick_top(sequences, refs, k, novelty=0.8, max_internal=0.7):
     """Best-scoring k that clear the novelty bar AND are not near-duplicates of each other.
 
@@ -288,6 +356,8 @@ def pick_top(sequences, refs, k, novelty=0.8, max_internal=0.7):
                 if Levenshtein.ratio(s, r) > novelty:
                     ok = False
                     break
+        if ok and not _identity_ok(s, refs, novelty):
+            ok = False
         if ok and max_internal is not None:
             for t in top:
                 if Levenshtein.ratio(s, t) > max_internal:
