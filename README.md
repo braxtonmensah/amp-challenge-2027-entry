@@ -150,11 +150,18 @@ itself. Higher is better except FBD and MMD, which are distances.
 |---|---|---|---|---|---|---|
 | held-out **real AMPs** (ceiling) | 1.000 | 0.853 | 1.0 | 0.485 | 0.0049 | 0.00057 |
 | **our library** | 1.000 | **0.850** | 1.0 | **0.570** | **0.0093** | **0.00148** |
+| **our top-100** | 1.000 | **0.814** | 1.0 | **0.531** | **0.0525** | **0.0207** |
 | composition-matched shuffles | 1.000 | 0.856 | 1.0 | 0.504 | 0.0064 | 0.00115 |
 | random K/P, the example generator | 0.979 | 0.479 | 1.0 | 0.147 | 0.354 | 2.378 |
 
 The library sits at the real-AMP ceiling on diversity, exceeds it on property conformity, and is roughly
 38x closer to the reference distribution than the example generator.
+
+The three guards were kept honest against this table. The top-100 that the retired composite selected
+scored Diversity 0.760, Conformity 0.533, FBD 0.062, MMD 0.077. An unguarded aggressive selection scored
+0.759 / 0.029 / 0.063 / 0.135, trading a Phase 1 collapse for Phase 2 gain. The shipped selection scores
+**0.814 / 0.531 / 0.053 / 0.021**, which is better than the retired composite on *every* metric while
+also carrying +0.247 log10 of predicted safety window. No Phase 1 cost was paid for the Phase 2 gain.
 
 ## Compliance, checked against the organizers' own validator
 
