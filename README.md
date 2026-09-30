@@ -306,10 +306,13 @@ are distances against the 2,389 potent AMPs, so lower is better; everything else
 | **this entry** | 1.000 | **0.825** | **1.000** | **1.820** | **8.201** | **0.4574** |
 
 Five times closer than the organizers' baseline on FBD and nearly seven times on MMD, with better
-conformity and better internal diversity at identical uniqueness and novelty. The row that matters most is
-the shuffled null: a null that preserves composition exactly while destroying all sequence order is a
-strong baseline in embedding space, and the previous version sat well above it at 4.336 while this one sits
-at its level.
+internal diversity (0.825 against 0.805) at identical uniqueness and novelty. **Conformity goes the other
+way and the table is the authority: 0.4574 here against the baseline's 0.4662 and real potent AMPs'
+0.5003.** An earlier version of this sentence said "better conformity", which is wrong; distribution
+matching over composition and length axes is what buys the FBD and MMD margin, and it does not buy the
+property-envelope score. The row that matters most is the shuffled null: a null that preserves composition
+exactly while destroying all sequence order is a strong baseline in embedding space, and the previous
+version sat well above it at 4.336 while this one sits at its level, which is a tie and not a win.
 
 **Memorisation check, because the training corpus is small.** Fitting an order-2 Markov model to only
 2,389 sequences invites near-copies, and Phase 1 screens for "exact and near-exact matches against

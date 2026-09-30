@@ -253,8 +253,18 @@ comparison rather than a self-report. Anchors above and below bound every column
 | **this entry** | 1.000 | **0.825** | **1.000** | **1.820** | **8.201** | **0.4574** |
 
 Against the published organizer baseline this library is **5.0x closer on FBD and 6.8x closer on MMD**,
-with higher Conformity and higher internal Diversity, at identical Uniqueness and Novelty. That 5x gap is
+with higher internal Diversity (0.825 against 0.805), at identical Uniqueness and Novelty. That 5x gap is
 the claim this entry rests on, and it is far outside any plausible measurement noise.
+
+**It loses on property conformity, and that is stated here rather than left to the table.** This library
+scores 0.4574 against the HydrAMP baseline's 0.4662 and real potent AMPs' 0.5003. An earlier revision of
+this sentence claimed "higher Conformity" against the baseline, which the table directly above it
+refutes; that is withdrawn. The trade is deliberate and follows from the method: the library is built by
+matching the potent-AMP *distribution* over 24 composition and length axes, which is what buys the FBD
+and MMD margin, and conformity is a separate property-envelope score that this selection does not
+optimise. Phase 1 aggregates four metric families at weights the competition withholds, so the honest
+position is that this entry is strong on two of them, weak on this one, and cannot be scored overall
+until those weights are published.
 
 **The comparison against the residue-shuffled null is a tie, and is reported as one.** This library
 measures FBD 1.820 against the null's 1.821. An earlier revision of this paragraph read that as sitting
