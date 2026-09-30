@@ -13,9 +13,9 @@ dependencies = ["numpy>=2.2.6", "levenshtein>=0.27.3",
 ]
 
 [project.scripts]
-generate = "amp.generate:main"
+generate = "amp.generate_matched:main"
 generate_lm = "amp.generate_lm:main"
-generate_broad_spectrum = "amp.generate:main"
+generate_broad_spectrum = "amp.generate_matched:main"
 generate_gram_positive = "amp.generate:main"
 generate_gram_negative = "amp.generate:main"
 generate_mdr = "amp.generate:main"

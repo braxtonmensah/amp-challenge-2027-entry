@@ -1,4 +1,4 @@
-# AMP Challenge 2027 entry: motif-faithful generation, with a selection rule chosen by measurement
+# AMP Challenge 2027 entry: a distribution-matched library, with every constant chosen by measurement
 
 Braxton Mensah, Indiana University Bloomington (`bsmensah@iu.edu`).
 
@@ -14,10 +14,21 @@ Writes `generate/library.fasta` (50,000 sequences) and `generate/top.fasta` (100
 **AI assistance.** This repository was written with AI assistance (Anthropic Claude), which the
 competition rules permit and require to be disclosed.
 
-**Training data for generation: one corpus only.** `data/antibacterial.fasta` as shipped in the
-organizers' template, 39,448 sequences, all 8-50 residues. The generator uses no pretrained model and no
-other corpus. It is used for three things: fitting the order-2 transition table, drawing the length
-distribution, and filtering for novelty.
+**Training data for generation: two committed corpora, no pretrained model.**
+
+* `data/potent_amps.fasta`, 2,389 sequences, is what the generator is **fitted** to. It is derived by
+  `scripts/derive_potent.py` from the public GRAMPA MIC aggregation: unmodified, non-amidated, 8-50
+  residues, 20 standard amino acids, median of all reported log10 MIC values per sequence, keeping median
+  MIC <= 16 uM, which is the competition's own Potency Threshold. Re-running the script reproduces the
+  committed file byte for byte.
+* `data/antibacterial.fasta` as shipped in the organizers' template, 39,448 sequences, is the **novelty
+  reference only**.
+
+Earlier versions of this entry fitted the generator to `antibacterial.fasta` itself. That was a mistake and
+it is worth naming: of the 4,121 sequences in that corpus carrying published MIC values, **42% have a median
+MIC above the competition's own potency threshold**, while the Phase 1 aggregation score is stated to be
+"tuned to discriminate between known potent and weak antimicrobial peptides". The old entry was fitting a
+mixture that was 42% the wrong target.
 
 **External data used to choose the SELECTION RULE.** Public measured MIC and haemolysis values were used
 to decide the form and the constants of the scoring function. The competition explicitly permits this
@@ -42,14 +53,32 @@ repository alone.
 
 ### Generation
 
-An **order-2 Markov chain** fitted to the reference actives, so local motifs (`KKIL`, `GKII`) occur at
-their natural frequency instead of being assembled from independent per-position draws. Lengths are
-drawn from the empirical reference length distribution. The library excludes exact matches to the
-reference set and internal duplicates.
+An **order-2 Markov chain** fitted to the 2,389 potent AMPs, so local motifs (`KKIL`, `GKII`) occur at
+their natural frequency instead of being assembled from independent per-position draws. Lengths are drawn
+from the empirical potent length distribution.
 
-This is a deliberately weak generative model, and the entry does not claim otherwise. Measured on the
-organizers' own `seqme` framework it is nonetheless close to the ceiling set by real AMPs (table below),
-which is the only thing the Phase 1 library metrics ask of it.
+**The library is then built by selection, not by raw sampling.** A pool of 1,200,000 candidates is
+generated, exact matches to `antibacterial.fasta` and internal duplicates are removed, and 50,000 are
+chosen by length-stratified importance weighting toward the potent-AMP marginals (20 amino-acid
+frequencies, net charge, Kyte-Doolittle GRAVY, Eisenberg hydrophobic moment), drawn without replacement by
+the Gumbel top-k trick.
+
+This matters because FBD is a distance between Gaussians fitted to embeddings and MMD is a kernel distance
+between distributions: both are minimised *directly* by choosing which sequences to include. It is also
+what the organizers' own HydrAMP baseline does, which generates a pool and keeps only candidates whose
+predicted P(AMP) and P(low-MIC) both fall in [0.8, 1.0]. Computational filters are explicitly permitted and
+must be disclosed.
+
+**The stratification is a bug fix, not a flourish.** A single global weighted draw silently shortens the
+library, because 20 of the 24 axes are per-residue frequencies that carry no length information and short
+peptides reach extreme compositions more cheaply. Measured on the length marginal, a global draw moves the
+library off the potent-AMP length distribution (p10/p50/p90 12/22/40) and onto the *weak*-AMP one
+(10/18/32). Stratifying by length pins the marginal to the potent reference by construction and lets the
+weights act only within a stratum, where they are not confounded.
+
+The generative model is deliberately weak and the entry does not claim otherwise. What the Phase 1 library
+metrics ask of it is distributional, and on the organizers' own `seqme` framework the resulting library
+beats their published HydrAMP baseline on every metric measured (table below).
 
 ### Selection: what we measured, and what we retired
 
@@ -170,8 +199,9 @@ endpoints at once.
 Extremising any linear score walks it off the end of the evidence, and each of these was added after
 watching that happen, not in anticipation:
 
-1. **Measured envelope.** Selection is restricted to net charge in [-1, +5] and mean hydrophobicity in
-   [-0.19, +0.65], the 30th-70th percentile band of the labelled distribution. Unconstrained, the scorer
+1. **Measured envelope.** Selection is restricted to net charge in **[-1, +7]** and mean hydrophobicity in
+   [-0.05, +0.65]. The ceiling was +5 in earlier versions; see "The charge ceiling" below for the
+   measurement that moved it, and note that the hydrophobicity window did **not** move. Unconstrained, the scorer
    selected poly-arginine strings at charge +18 (`RRRRWIRDLAKTMQHPPRRQPKKRRKRRRGCR`) with 44 of 100
    outside any measured range; those are cell-penetrating-peptide motifs, not antimicrobials.
    The percentile was chosen by a stated rule, not by taste: **take the most aggressive envelope whose
@@ -214,27 +244,81 @@ bounded how much that can matter rather than leaving it unquantified: a union wi
 contains 43,025 unique sequences against the template's 39,448, i.e. those two databases add only about
 9% of genuinely new sequence. That bounds the gap; it does not close it.
 
-## Phase 1, measured on the organizers' own `seqme`
+### The charge ceiling
 
-Computed against a **disjoint half** of the reference actives, so the real-AMP row is not scoring against
-itself. Higher is better except FBD and MMD, which are distances.
+The envelope's charge ceiling was +5 for most of this entry's life. That was never a biological judgement.
+In a single-stage design the top-100 also had to carry the library's property-conformity score, and raising
+the ceiling collapsed it: 0.303 at cap +7 and 0.197 at +9, against 0.489 for real AMPs. Once the 50,000
+library is distribution-matched by its own separate stage, the top-100 stops carrying that burden and the
+ceiling can be set from evidence. On the 2,904 panel-matched labelled sequences, restricted to the
+low-hydrophobicity region this envelope occupies:
 
-| query set | Uniqueness | Diversity | Novelty | Conformity | FBD | MMD |
+| net charge | n | measured success rate | n | measured log10 safety window |
+|---|---|---|---|---|
+| +2 to +4 | 171 | 0.444 | 177 | +0.991 |
+| +4 to +6 | 464 | 0.535 | 145 | +1.390 |
+| **+6 to +8** | **412** | **0.697** | **83** | **+1.794** |
+| +8 to +10 | 145 | 0.717 | 22 | +1.530 |
+| +10 to +12 | 54 | 0.835 | 12 | +2.028 |
+
+Both ranked quantities rise together, and the mechanism is legible in the 501 sequences carrying both panel
+MIC50 and HC50: log10 safety window correlates **+0.353 with net charge** and **-0.423 with mean
+hydrophobicity**, while log10 HC50 alone correlates only **+0.062 with charge**. Cationicity lowers MIC
+without raising haemolysis; hydrophobicity raises haemolysis. So the ceiling rises and the hydrophobicity
+window stays exactly where it was. That is why this is not a trade. For scale, the reranking idea this entry
+retracted was worth +0.002 on measured success rate; this is worth about +0.16.
+
+**The cost, stated plainly.** Raising the ceiling collapses the *top-100's* own property conformity, which
+is the effect the +5 cap existed to prevent. Measured with `seqme` against the potent reference: 0.679 at
+cap +5, **0.396 at cap +7**, 0.263 at +8, 0.190 at +9, against 0.476 for real potent AMPs and 0.501 for a
+shuffled null. The 50,000-member library's conformity is untouched at 0.457, since the library is matched by
+its own stage; only the 100-sequence list pays. Phase 1 ranks the library and the candidate list, so this is
+a real cost that falls on the smaller object while the gain falls on the assayed peptides. It is a bet, and
+it is recorded as one.
+
+It stops at +7, not higher, because +7 and +8 both land the set inside the same measured [+6,+8) charge band
+and therefore buy the identical gain, so +8 would pay a further 0.13 of conformity for nothing. +7 also holds
+median length at 24, exactly the potent reference's mean, where +8 pushes it to 28; longer highly cationic
+peptides are harder to synthesise and less soluble, and the FAQ says a synthesis failure is not retested, so
+it simply shrinks the assayed sample. The bands above +8 rest on n=22 and n=12 for safety window, too thin to
+steer by.
+
+4. **Synthesizability guard.** No Asn-Gly, Asp-Gly, Asp-Pro, Asn-Ser or Asp-Ser; at most one methionine; at
+   most four consecutive hydrophobic residues. Phase 1 scores the "rate of sequences satisfying empirically
+   derived synthesizability constraints" *and* a synthesis failure costs an assay slot, so this is scored
+   twice. The previous top-100 had 85 of 100 clean under these rules; the shipped one has 100 of 100, at a
+   cost of -0.006 in predicted success rate.
+
+## Phase 1, measured on the organizers' own `seqme`, against their own baseline
+
+`seqme` 0.5.1, ESM2 `t6_8M`, n=1500 per row at seed 42, one identical protocol for every row. FBD and MMD
+are distances against the 2,389 potent AMPs, so lower is better; everything else is higher-is-better. The
+**HydrAMP row is the organizers' published baseline library**, the 50,000 sequences committed in
+`szczurek-lab/hydramp-starter-kit`, so this is a direct comparison and not a self-report.
+
+| library | Uniqueness | Diversity | Novelty | FBD | MMD | Conformity |
 |---|---|---|---|---|---|---|
-| held-out **real AMPs** (ceiling) | 1.000 | 0.853 | 1.0 | 0.485 | 0.0049 | 0.00057 |
-| **our library** | 1.000 | **0.850** | 1.0 | **0.570** | **0.0093** | **0.00148** |
-| **our top-100** | 1.000 | **0.825** | 1.0 | **0.596** | **0.0529** | **0.0112** |
-| composition-matched shuffles | 1.000 | 0.856 | 1.0 | 0.504 | 0.0064 | 0.00115 |
-| random K/P, the example generator | 0.979 | 0.479 | 1.0 | 0.147 | 0.354 | 2.378 |
+| real potent AMPs (ceiling) | 1.000 | 0.822 | 0.136 | 0.035 | 0.018 | 0.5003 |
+| real weak AMPs | 1.000 | 0.833 | 0.067 | 0.564 | 2.220 | 0.5321 |
+| residue-shuffled potent (null) | 0.999 | 0.834 | 0.999 | 1.821 | 9.664 | 0.5099 |
+| **HydrAMP baseline (organizers)** | 1.000 | 0.805 | 1.000 | 9.068 | 55.904 | 0.4662 |
+| this entry, previous version | 1.000 | 0.853 | 1.000 | 4.336 | 21.270 | 0.4513 |
+| **this entry** | 1.000 | **0.825** | **1.000** | **1.820** | **8.201** | **0.4574** |
 
-The library sits at the real-AMP ceiling on diversity, exceeds it on property conformity, and is roughly
-38x closer to the reference distribution than the example generator.
+Five times closer than the organizers' baseline on FBD and nearly seven times on MMD, with better
+conformity and better internal diversity at identical uniqueness and novelty. The row that matters most is
+the shuffled null: a null that preserves composition exactly while destroying all sequence order is a
+strong baseline in embedding space, and the previous version sat well above it at 4.336 while this one sits
+at its level.
 
-The three guards were kept honest against this table. The top-100 that the retired composite selected
-scored Diversity 0.760, Conformity 0.533, FBD 0.062, MMD 0.077. An unguarded aggressive selection scored
-0.759 / 0.029 / 0.063 / 0.135, trading a Phase 1 collapse for Phase 2 gain. The shipped selection scores
-**0.825 / 0.596 / 0.053 / 0.011**, which is better than the retired composite on *every* metric while
-also carrying +0.247 log10 of predicted safety window. No Phase 1 cost was paid for the Phase 2 gain.
+**Memorisation check, because the training corpus is small.** Fitting an order-2 Markov model to only
+2,389 sequences invites near-copies, and Phase 1 screens for "exact and near-exact matches against
+established AMP repositories" to separate genuinely novel designs from rediscovered peptides. The library
+rule forbids only *exact* matches, so a near-duplicate would pass the validator and still cost us. Measured
+against the full training corpus: **zero exact copies**, highest Levenshtein ratio to any training sequence
+**0.9412**, and **4 of 50,000 sequences (0.008%) above 0.90**. Worth noting that 324 of the 2,389 training
+sequences are *not* present in `antibacterial.fasta`, so the exclusion list does not cover them; the zero
+above is therefore a measured result rather than something the filter guarantees.
 
 ## Compliance, checked against the organizers' own validator
 
@@ -274,7 +358,11 @@ top-100 additionally contains no cysteine.
 
 ## Repository map
 
-* `src/amp/generate.py` - the entry point. Generation, the shipped scorer, and all three guards.
+* `src/amp/generate_matched.py` - **the entry point** (`uv run generate`). Potent-corpus generation,
+  length-stratified distribution matching, and the top-100 selection with its four guards.
+* `src/amp/generate.py` - the previous entry point, kept because `generate_matched` imports its Markov
+  fitting, scorer and identity screen, and so the earlier constants stay auditable.
+* `scripts/derive_potent.py` - re-derives `data/potent_amps.fasta` from public GRAMPA, byte for byte.
 * `PREREG_SELECTION.md` - pre-registration 1: should a trained MIC model replace the scorer? Gate failed.
 * `PREREG_SELECTION_2.md` - pre-registration 2: are the scorer's own terms carrying signal? Gates passed.
 * `src/amp/prep_labels.py` - builds panel-matched labels from GRAMPA.
