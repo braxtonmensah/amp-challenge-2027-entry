@@ -9,8 +9,22 @@ There are two stochastic stages, each with its own generator seeded from that co
 the 1,200,000-candidate pool, and the Gumbel top-k draw that selects 50,000 of them. The pool is sorted
 before the draw, so the selection does not depend on the order in which candidates were generated.
 
-Re-running `uv run generate` on any machine with the pinned dependency versions reproduces the
-submitted library byte for byte.
+## What has actually been tested, and what has not
+
+Re-running the entry point with the pinned dependency versions reproduces the submitted library byte
+for byte. Stating the scope of that precisely, because the claim is easy to overstate:
+
+| test | result |
+|---|---|
+| two independent runs, same machine, Windows 11 / Python 3.11.9 / numpy 2.4.6 | **byte-identical, library and top-100** |
+| across CPU architectures | **not tested for this entry** |
+
+The second row is a real gap rather than a formality. The companion LM entry was checked on AMD EPYC
+7742 against Intel Xeon Gold 6248 precisely because different matmul kernels pick different reduction
+orders; this entry has no such check, so "reproduces on any machine" is **not** claimed. What is claimed
+is that the generation is seeded, order-independent by construction (the candidate pool is sorted before
+any weighted draw), and reproducible on a matching environment. Anything stronger would be asserted
+rather than measured.
 
 ## Verify it
 

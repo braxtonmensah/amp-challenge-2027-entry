@@ -49,7 +49,7 @@ variable between them.
 ## Abstract
 
 An order-2 Markov chain fitted to **2,389 experimentally potent antimicrobial peptides** (median MIC
-<= 16 uM, the competition's own potency threshold) oversamples a pool of 400,000 novel linear peptides,
+<= 16 uM, the competition's own potency threshold) oversamples a pool of 1,200,000 novel linear peptides,
 from which 50,000 are selected by **length-stratified importance weighting toward the potent-AMP
 distribution**. Two choices distinguish this from a raw sampling approach, and both were made because the
 competition states that its Phase-1 aggregation score "was tuned to discriminate between known potent and
@@ -69,13 +69,24 @@ our own prior claims were retracted on measurement.
 
 **Generation.** Order-2 Markov chain over amino acids, fitted to `data/potent_amps.fasta` (2,389
 sequences, derived from the public GRAMPA MIC aggregation by `scripts/derive_potent.py`, which is committed
-so the corpus is re-derivable). Lengths drawn from the empirical potent distribution. A pool of 400,000 is
-sampled; exact matches to `data/antibacterial.fasta` and internal duplicates are excluded.
+so the corpus is re-derivable). Lengths drawn from the empirical potent distribution. A pool of 1,200,000
+is sampled; exact matches to `data/antibacterial.fasta` and internal duplicates are excluded. The shipped
+run reports 1,199,997 unique candidates surviving those exclusions.
 
-**Library selection.** 50,000 of the 400,000 are chosen by importance weighting toward the potent-AMP
+**Library selection.** 50,000 of the 1,200,000 are chosen by importance weighting toward the potent-AMP
 marginals over 24 axes (20 amino-acid frequencies, length, net charge, Kyte-Doolittle GRAVY, Eisenberg
 hydrophobic moment), tempered at `ALPHA = 2.0` with per-axis log-ratios clipped to +/-2, and drawn without
 replacement by the Gumbel top-k trick, which is exact for sampling proportional to the weights.
+
+**One diagnostic the entry point prints looks worse than it is, so it is explained rather than hidden.**
+The run reports `ESS=41 of 1199997`, an effective sample size of 41 from a 1.2M pool, which reads like a
+collapsed distribution. It is not one, and the reason is that ESS answers a question this draw does not
+ask. ESS measures how many independent draws a weighted sample is worth *with replacement*, where a
+dominant weight is drawn repeatedly. This draw is Gumbel top-k *without* replacement, so a dominant
+candidate can be taken at most once and the remaining 49,999 slots are filled by descending perturbed
+weight across the pool. The measured outcome is the check that matters: 50,000 unique sequences,
+Uniqueness 1.000, and internal Diversity 0.825 against 0.822 for real potent AMPs (Section 4 table). The
+library is marginally more diverse than the reference it is fitted to, which is the opposite of collapse.
 
 The draw is **stratified by length**, and that detail was a bug fix rather than a refinement. A single
 global weighted draw silently shortens the library: 20 of the 24 axes are per-residue frequencies, which
@@ -242,10 +253,17 @@ comparison rather than a self-report. Anchors above and below bound every column
 | **this entry** | 1.000 | **0.825** | **1.000** | **1.820** | **8.201** | **0.4574** |
 
 Against the published organizer baseline this library is **5.0x closer on FBD and 6.8x closer on MMD**,
-with higher Conformity and higher internal Diversity, at identical Uniqueness and Novelty. Its FBD also
-sits below the residue-shuffled null (1.867 vs 1.821 is within noise of it; the previous library at 4.336
-was well above it), which is the check that matters, because a null preserving composition exactly while
-destroying all sequence order is a much stronger baseline in embedding space than a random peptide set.
+with higher Conformity and higher internal Diversity, at identical Uniqueness and Novelty. That 5x gap is
+the claim this entry rests on, and it is far outside any plausible measurement noise.
+
+**The comparison against the residue-shuffled null is a tie, and is reported as one.** This library
+measures FBD 1.820 against the null's 1.821. An earlier revision of this paragraph read that as sitting
+"below the null", and separately quoted 1.867 where the table says 1.820. Both are withdrawn. A margin of
+0.001, on a quantity whose two independent measurements of this same library differ by about 0.05, is a
+tie and nothing more. The honest statement is that this library **reaches** the residue-shuffled null and
+does not beat it. That null preserves composition exactly while destroying all sequence order, so it is a
+genuinely hard baseline in embedding space, and matching it is worth something; the previous library at
+4.336 was well above it. But a tie is not a win and is not written up as one.
 
 An AMP classifier (amPEPpy, `seqme-amPEPpy` at commit `29fec357`) scores the potent-trained library before
 selection at **0.6335 against the HydrAMP baseline's 0.5988** (t=+38.6 on the full 50,000 each). That
@@ -316,11 +334,21 @@ documented in code with the measurement that motivated it.
    monotonically with it (2.325 -> 1.992 -> 1.867 at 0.6, 1.2, 2.0) while Diversity held near 0.827 and the
    length marginal stayed pinned to the potent reference. If the graders' curated potent set differs
    materially from the GRAMPA-derived one used here, that gain will shrink.
+
+   The 1.867 endpoint of that sweep and the 1.820 in the Section 4 table are two separate measurements of
+   the same shipped library, not a disagreement about which library ships. They differ by 0.047, which is
+   the practical precision of FBD here and is why the null comparison above is called a tie rather than a
+   win. The sweep is reported at its own numbers rather than silently restated at the table's, because the
+   monotone direction is the thing it establishes and the absolute values are not precise enough to carry
+   more weight than that.
 8. Selecting a library to resemble known potent AMPs optimises a Phase-1 quantity, not measured potency.
    Phase 1 gates Phase 2, so the ordering is deliberate, but it is an explicit bet that distributional
    resemblance to potent AMPs is not anti-correlated with activity. Nothing here tests that.
-9. The 400,000-candidate pool takes roughly 6.5 minutes to sample on one CPU core, so the organizers'
-   reproducibility re-run costs about that much before the selection step.
+9. The reproducibility re-run is not instant. Timed end to end on the shipped configuration
+   (1,200,000-candidate pool, Windows 11, Python 3.11.9, numpy 2.4.6, one core): **about 19 minutes**
+   from entry point to both output files, sampling plus selection. An earlier revision of this line
+   said 6.5 minutes for a 400,000-candidate pool, which was the previous configuration and understated
+   the organizers' cost by roughly 3x. Corrected against a measured run rather than re-estimated.
 
 ## AI assistance
 
