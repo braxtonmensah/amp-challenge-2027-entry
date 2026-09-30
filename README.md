@@ -5,7 +5,10 @@ Braxton Mensah, Indiana University Bloomington (`bsmensah@iu.edu`).
     uv sync
     uv run generate
 
-Writes `generate/library.fasta` (50,000 sequences) and `generate/top.fasta` (100).
+Writes `generate/library.fasta` (50,000 sequences) and `generate/top.fasta` (100). Takes about 19
+minutes on one core. Five packages, ~64 MB; torch is not required and is not installed (see `SEED.md`).
+Python is pinned to 3.11 because the lock resolves numpy 2.4.6 only there, and 2.4.6 is what produced
+the submitted library.
 
 ---
 

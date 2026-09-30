@@ -6,20 +6,52 @@ readme = "README.md"
 authors = [
     { name = "Braxton Mensah", email = "bsmensah@iu.edu" }
 ]
-requires-python = ">=3.10"
-dependencies = ["numpy>=2.2.6", "levenshtein>=0.27.3",
+# Pinned to 3.11 deliberately. uv.lock resolves numpy 2.4.6 only under
+# python_full_version == '3.11.*'; on 3.10 it resolves numpy 2.2.6 instead, and the
+# submitted library was produced on 2.4.6. Allowing 3.10 would let a verifier build a
+# different library from the same lock file, so the byte-for-byte claim in SEED.md would
+# be false through no fault of theirs. .python-version already pins 3.11; this makes it
+# enforced rather than advisory.
+requires-python = ">=3.11,<3.12"
+
+# The entry point (`generate` -> amp.generate_matched) needs only these three.
+dependencies = [
+    "numpy==2.4.6",
+    "levenshtein>=0.27.3",
     "biopython>=1.83",
-    "torch>=2.2",
 ]
 
+# torch is NOT required to reproduce the submission and is deliberately not a default
+# dependency. It is imported only by the companion language-model and RL research modules
+# (generate_lm, lm, gen_plm_resample, rl_*), none of which are on the entry point's import
+# path. On Linux `uv sync` with torch present pulls the full CUDA wheel set (cudnn, cublas,
+# nccl and friends, ~2.7 GB) and that download timed out when tested, which would fail the
+# organizers' reproducibility re-run for reasons unrelated to the science.
+#
+#   uv sync                # 3 packages, what the organizers need
+#   uv sync --extra lm     # adds torch, only for `generate_lm` and the rl_* modules
+[project.optional-dependencies]
+lm = ["torch>=2.2"]
+
+# The competition defines exactly ONE entry point. From the template's own pyproject:
+#     generate = "amp_challenge_2027.generate:main"
+# and the organizers' validator hard-codes ENTRY_POINT = "generate". The five competition
+# categories are SCORING categories, not separate submissions: the rules state that one
+# library and one top-100 are submitted, and "team-level scores for each of the five
+# categories are the arithmetic mean of the relevant peptide metric across the team's 25
+# peptides". So there is nothing for per-category entry points to do.
+#
+# This project previously declared five of them. Four (generate_gram_positive,
+# generate_gram_negative, generate_mdr, generate_low_hemolysis) still pointed at
+# `amp.generate`, the SUPERSEDED generator, and because the output directory is derived
+# from the invoked script name they would each have written a different, worse library
+# into its own directory. A reviewer running one would have got something that is not this
+# submission. Removed rather than left as a trap.
 [project.scripts]
 generate = "amp.generate_matched:main"
+
+# Reproduces the companion entry's library. Needs the `lm` extra (torch).
 generate_lm = "amp.generate_lm:main"
-generate_broad_spectrum = "amp.generate_matched:main"
-generate_gram_positive = "amp.generate:main"
-generate_gram_negative = "amp.generate:main"
-generate_mdr = "amp.generate:main"
-generate_low_hemolysis = "amp.generate:main"
 
 [build-system]
 requires = ["hatchling"]

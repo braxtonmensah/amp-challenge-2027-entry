@@ -32,6 +32,28 @@ rather than measured.
     uv run generate
     # regenerates generate/library.fasta and generate/top.fasta IN PLACE
 
+`uv sync` installs five packages and about 64 MB: numpy, levenshtein, rapidfuzz, biopython and this
+package. It deliberately does **not** install torch.
+
+Two things about the environment are pinned rather than merely suggested, because both can silently
+change the output and neither is the verifier's fault if it does:
+
+* **`requires-python = ">=3.11,<3.12"`.** The lock file resolves numpy 2.4.6 only under Python 3.11.
+  An earlier `>=3.10` allowed a 3.10 interpreter, where the same lock resolved numpy **2.2.6**, and
+  the submitted library was produced on 2.4.6. A verifier on 3.10 would have regenerated a different
+  library from the same repository and correctly concluded the reproducibility claim was false.
+* **`numpy==2.4.6`, exactly.** It was previously `>=2.2.6`, a floor rather than a pin, which left three
+  numpy versions reachable across the resolution. There is now exactly one.
+
+**torch is not a dependency of this entry.** It is imported only by the companion language-model and
+RL research modules, none of which sit on the entry point's import path. It was previously declared as
+a top-level dependency, which meant `uv sync` on Linux pulled the full CUDA wheel set (cudnn, cublas,
+nccl and the rest, roughly 2.7 GB). Tested, that download timed out and the sync failed, which would
+have failed this entry's reproducibility re-run for a reason having nothing to do with the method. To
+run the companion generator or the RL modules instead:
+
+    uv sync --extra lm     # adds torch
+
 The run overwrites the working tree, so compare against the committed copies from git rather than
 against files that no longer exist:
 
